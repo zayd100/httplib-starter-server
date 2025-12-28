@@ -94,7 +94,7 @@ int main() {
             </head>
             <body>
                 <div class="container">
-                    <h1>🚀 C++ HTTP Server</h1>
+                    <h1>C++ HTTP Server</h1>
                     <p>Welcome! This server is built with cpp-httplib.</p>
                     
                     <h2>Available Endpoints:</h2>
@@ -193,7 +193,7 @@ int main() {
                 </style>
             </head>
             <body>
-                <h1>👋 Hello, )" + name + R"(!</h1>
+                <h1> Hello, )" + name + R"(!</h1>
                 <p>Welcome to the C++ server</p>
             </body>
             </html>
