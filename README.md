@@ -1,122 +1,182 @@
-C++ HTTP/HTTPS Server with cpp-httplib
-A lightweight, cross-platform HTTP/HTTPS web server built in C++ using the single-header cpp-httplib library. This project demonstrates how to create a simple web server with SSL/TLS support.
- 
- # Features
+C++ HTTP Server
+A lightweight, feature-rich HTTP server built in C++ using the cpp-httplib library. This project demonstrates REST API development, request logging, statistics tracking, and dynamic routing capabilities.
+ Features
 
- HTTP & HTTPS Support - Serves both secure and non-secure connections
- Cross-Platform - Works on Windows, Linux, and macOS
- Single-Header Library - Uses cpp-httplib (no external dependencies except OpenSSL for HTTPS)
- Simple Routing - Easy-to-define GET/POST endpoints
- JSON API Support - Returns JSON responses
- Static HTML Serving - Serves HTML content
- SSL/TLS Certificates Included - Self-signed certificate for HTTPS testing
+REST API Endpoints - Multiple JSON API routes for different functionalities
+Request Logging - Automatic logging of all incoming requests with timestamps
+Statistics Tracking - Real-time request counting and per-endpoint analytics
+Dynamic Routing - Path parameters for personalized responses
+POST Request Handling - Echo endpoint for testing request bodies
+Uptime Monitoring - Track server runtime since startup
+Custom Error Handling - Styled 404 pages
+Middleware Support - Pre-routing handlers for request interception
+Cross-Platform - Works on Windows with Winsock support
 
 Prerequisites
 
-C++ Compiler (GCC, Clang, or MSVC)
-OpenSSL (for HTTPS support)
+C++ Compiler (GCC, Clang, or MSVC with C++11 support)
 Windows: MinGW-w64 or Visual Studio
+Winsock2 library (included in Windows)
 
-Installation
+ Installation
 bash# Clone the repository
-git clone https://github.com/yourusername/cpp-httplib-server.git
-cd cpp-httplib-server
-
-# Compile (Linux/macOS)
-g++ -std=c++11 main.cpp -o server -lpthread -lssl -lcrypto
+git clone https://github.com/yourusername/cpp-http-server.git
+cd cpp-http-server
 
 # Compile (Windows with MinGW)
-g++ -std=c++11 main.cpp -o server.exe -lws2_32 -lssl -lcrypto
-Running the Server
-bash# Run the compiled binary
-./server  # Linux/macOS
-server.exe  # Windows
+g++ -std=c++11 main.cpp -o server.exe -lws2_32
+
+# Compile (Linux/macOS - if adapted)
+g++ -std=c++11 main.cpp -o server -lpthread
+Usage
+bash# Run the server
+./server.exe  # Windows
+./server      # Linux/macOS
+
+# Server will start on http://localhost:8080
 ```
 
-The server will start on:
-- **HTTP**: `http://localhost:8080`
-- **HTTPS**: `https://localhost:8443` (if SSL enabled)
+## 📡 API Endpoints
 
-## Tree
+### **GET /** 
+Homepage with interactive documentation
 ```
-cpp-httplib-server/
-├── httplib.h           # Single-header HTTP library (v0.20.0)
-├── main.cpp            # Main server implementation
-├── server.crt          # SSL certificate (self-signed)
-├── server.key          # SSL private key
-└── README.md           # This file
-🔌 API Endpoints
-GET /
-Returns an HTML welcome page.
-Response:
-html<html>
-    <head><title>Welcome</title></head>
-    <body>
-        <h1>C++ Server</h1>
-        <p>HTTP C++ server is running.</p>
-    </body>
-</html>
-GET /json
-Returns a JSON status response.
+http://localhost:8080/
+GET /api/status
+Server status and uptime information
+bashcurl http://localhost:8080/api/status
 Response:
 json{
     "status": "online",
-    "message": "Welcome, Zayd"
+    "uptime": "0h 5m 32s",
+    "timestamp": "2025-12-28 15:30:45",
+    "total_requests": 42
 }
-SSL/TLS Configuration
-The repository includes self-signed SSL certificates for testing:
+GET /api/time
+Current server timestamp
+bashcurl http://localhost:8080/api/time
+Response:
+json{
+    "current_time": "2025-12-28 15:30:45"
+}
+GET /api/stats
+Request statistics per endpoint
+bashcurl http://localhost:8080/api/stats
+Response:
+json{
+  "total_requests": 42,
+  "endpoints": {
+    "/": 15,
+    "/api/status": 10,
+    "/api/time": 8,
+    "/greet/john": 5
+  }
+}
+POST /api/echo
+Echo back the request body with metadata
+bashcurl -X POST http://localhost:8080/api/echo -d "Hello Server"
+Response:
+json{
+    "message": "Hello Server",
+    "length": 12,
+    "timestamp": "2025-12-28 15:30:45"
+}
+```
 
-Certificate: server.crt (valid until April 6, 2026)
-Private Key: server.key
+### **GET /greet/:name**
+Personalized greeting page
+```
+http://localhost:8080/greet/zayd
+```
+Returns a styled HTML page with a personalized greeting.
 
-Using Your Own Certificates
-Replace the certificate files or generate new ones:
-bash# Generate self-signed certificate
-openssl req -x509 -newkey rsa:2048 -keyout server.key -out server.crt -days 365 -nodes
-Enabling HTTPS in Code
-cpp// HTTPS Server Example
-httplib::SSLServer server("server.crt", "server.key");
-
-server.Get("/", [](const httplib::Request&, httplib::Response& res) {
-    res.set_content("Secure Connection!", "text/plain");
+## tree
+```
+cpp-http-server/
+├── httplib.h           # Single-header HTTP library (v0.20.0)
+├── main.cpp            # Server implementation with routes
+├── server.crt          # SSL certificate (optional)
+├── server.key          # SSL private key (optional)
+└── README.md           # This file
+🛠️ Technical Details
+Key Components
+1. Request Middleware
+cppserver.set_pre_routing_handler([](const httplib::Request& req, httplib::Response&) {
+    cout << "[" << getCurrentTime() << "] " << req.method << " " << req.path << endl;
+    requestCount++;
+    endpointStats[req.path]++;
+    return httplib::Server::HandlerResponse::Unhandled;
 });
-
-server.listen("0.0.0.0", 8443);
- Adding New Routes
-cpp// POST endpoint
-server.Post("/api/data", [](const httplib::Request& req, httplib::Response& res) {
-    std::cout << "Received: " << req.body << std::endl;
-    res.set_content(R"({"received": true})", "application/json");
+Logs every request and updates statistics before routing.
+2. Statistics Tracking
+cppint requestCount = 0;
+map<string, int> endpointStats;
+Global counters track total requests and per-endpoint hits.
+3. Time Utilities
+cppstring getCurrentTime() {
+    auto now = chrono::system_clock::now();
+    time_t now_c = chrono::system_clock::to_time_t(now);
+    stringstream ss;
+    ss << put_time(localtime(&now_c), "%Y-%m-%d %H:%M:%S");
+    return ss.str();
+}
+Formats timestamps for logging and API responses.
+4. Dynamic Routing
+cppserver.Get(R"(/greet/(\w+))", [](const httplib::Request& req, httplib::Response& res) {
+    auto name = req.matches[1];
+    // Generate personalized response
 });
-
-// GET with parameters
-server.Get("/user/:id", [](const httplib::Request& req, httplib::Response& res) {
-    auto user_id = req.path_params.at("id");
-    res.set_content("User ID: " + user_id, "text/plain");
-});
-- Dependencies -
-
-cpp-httplib v0.20.0 (included)
-OpenSSL (for HTTPS support)
-
-Linux: sudo apt-get install libssl-dev
-macOS: brew install openssl
-Windows: Download from OpenSSL.org
-
-
-
+Regex-based path parameters for flexible routing.
+ Features Breakdown
+FeatureDescriptionImplementationLoggingTimestamps all requestsMiddleware + chronoStatisticsCounts requests per routeSTL map + countersUptimeTracks server runtimesteady_clockPOST EchoReturns request bodyBody parsing404 HandlerCustom error pagesset_error_handlerJSON APIMultiple REST endpointsManual JSON construction
  Troubleshooting
-"Winsock initialization failed" (Windows)
+Port Already in Use
+bash# Change port in main.cpp line 185
+server.listen("0.0.0.0", 9090); // Use different port
+Winsock Error (Windows)
 Ensure you're linking against ws2_32.lib:
 bashg++ main.cpp -lws2_32
-Certificate Errors (HTTPS)
-Browsers will show a warning for self-signed certificates. Click "Advanced" → "Proceed" to bypass.
-Port Already in Use
-Change the port in main.cpp:
-cppserver.listen("0.0.0.0", 9090); // Use port 9090 instead
+Compilation Errors
+Make sure you're using C++11 or later:
+bashg++ -std=c++11 main.cpp -o server
+```
+
+
+```
+========================================
+  C++ HTTP Server Starting...
+========================================
+  Server:  http://localhost:8080
+  Started: 2025-12-28 15:30:45
+========================================
+[2025-12-28 15:31:02] GET /
+[2025-12-28 15:31:05] GET /api/status
+[2025-12-28 15:31:08] POST /api/echo
+[2025-12-28 15:31:12] GET /greet/john
+Security Notes
+
+This is a development server - not production-ready
+No authentication/authorization implemented
+No input sanitization (vulnerable to injection)
+No rate limiting
+For learning purposes only
+
+ Future Enhancements
+
+ Add authentication (JWT/Basic Auth)
+ Database integration (SQLite)
+ WebSocket support
+ File upload handling
+ CORS configuration
+ Rate limiting
+ Request validation
+ Logging to file
+
+ Dependencies
+
+cpp-httplib v0.20.0 - Single-header C++11 HTTP/HTTPS library (MIT License)
+Winsock2 (Windows only)
+
  License
 This project uses the MIT License.
-
-cpp-httplib: MIT License © Yuji Hirose
-SSL certificates are for testing only and should not be used in production.
 
